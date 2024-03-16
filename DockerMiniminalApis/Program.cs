@@ -1,5 +1,8 @@
 using Dapper;
+using DockerMiniminalApis.Data;
+using DockerMiniminalApis.Products;
 using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -7,6 +10,10 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("ProductsConnectionString"))
+    .EnableSensitiveDataLogging());
 
 var app = builder.Build();
 
@@ -45,6 +52,7 @@ app.MapGet("/products", async (IConfiguration configuration) =>
         var sql =
         @"
         SELECT
+            Id,
             Description
         FROM
             Products
@@ -62,6 +70,12 @@ app.MapGet("/products", async (IConfiguration configuration) =>
 .WithDescription("Get a list of products' descriptions.")
 .WithOpenApi();
 
+using var scope = app.Services.CreateScope();
+
+using var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+dbContext.Database.Migrate();
+
 app.Run();
 
 internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
@@ -69,5 +83,3 @@ internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
 }
 
-
-internal record Product(string Description);
